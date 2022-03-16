@@ -1,0 +1,13 @@
+config:
+  guestbook_name: "MyPopRockFestival 2.0"
+  backend_uri: "http://backend.minikube.local/guestbook"
+replicaCount: 5
+image:
+  repository: phico/frontend
+  tag: "2.0"
+service:
+  port: 80
+  type: ClusterIP
+ingress:
+  host: frontend.minikube.local
+  

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locator-poc-app
+  labels:
+    app: locator-poc-selector
+spec:
+  selector:
+    matchLabels:
+      app: locator-poc-selector
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        # See Vault Agent injector annotations: https://www.vaultproject.io/docs/platform/k8s/injector/annotations
+
+        vault.hashicorp.com/agent-inject: 'true'
+
+        # This path varies for each k8s cluster, following the pattern "auth/{clusterName}"
+        #vault.hashicorp.com/auth-path: auth/lab
+        vault.hashicorp.com/auth-path: auth/kubernetes
+
+        # Disable sidecar container, freeing up resources
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: rdc-poc-role
+
+        # Mount the secret as file /vault/secrets/secret.env
+        vault.hashicorp.com/agent-inject-secret-secret.env: "rdc-poc-app/kv/dev/appsecret"
+
+        # Use Go template to generate the secret file content
+        vault.hashicorp.com/agent-inject-template-secret.env: |
+          {{- with secret "rdc-poc-app/kv/dev/appsecret" -}}
+          LOCATORDBSERVER="{{ .Data.data.LOCATORDBSERVER }}"
+          LOCATORDBUSER="{{ .Data.data.LOCATORDBUSER }}"
+          LOCATORDBPWD="{{ .Data.data.LOCATORDBPWD }}"
+          {{- end }}
+
+        vault.hashicorp.com/agent-inject-secret-filesecret: "rdc-poc-app/kv/dev/filesecret"
+        # Load a file-based secret by decoding base64 encoded value
+        # Load a file-based secret by decoding base64 encoded value
+        vault.hashicorp.com/agent-inject-template-filesecret: |
+          {{- with secret "rdc-poc-app/kv/dev/filesecret" -}}
+          {{ base64Decode .Data.data.content }}
+          {{- end -}}
+
+        # Override default volume path
+
+        # vault.hashicorp.com/secret-volume-path-filesecret: /custom/path
+      labels:
+        app: locator-poc-selector
+    spec:
+      serviceAccountName: rdc-poc-svc
+      containers:
+      - name: locator-poc-app
+        image: gcr.io/google-samples/hello-app:1.0
